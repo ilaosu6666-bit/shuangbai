@@ -4,12 +4,11 @@ import os
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all, copy_metadata
+from PyInstaller.utils.hooks import collect_all
 
 # ── Collect PyTorch resources (large C extensions, DLLs) ──
 torch_datas, torch_binaries, torch_hiddenimports = collect_all('torch')
 tv_datas, tv_binaries, tv_hiddenimports = collect_all('torchvision')
-streamlit_datas, streamlit_binaries, streamlit_hiddenimports = collect_all('streamlit')
 
 # ── Determine icon path ──
 icon_path = None
@@ -19,10 +18,20 @@ for c in candidates:
         icon_path = c
         break
 
+# ── Safely collect metadata ──
+_extra_datas = []
+for _pkg in ['streamlit', 'altair']:
+    try:
+        from PyInstaller.utils.hooks import copy_metadata
+        _meta = copy_metadata(_pkg)
+        _extra_datas.append(_meta)
+    except Exception:
+        pass  # Package metadata not available
+
 a = Analysis(
     ['desktop_launcher.py'],
     pathex=[],
-    binaries=torch_binaries + tv_binaries + streamlit_binaries,
+    binaries=torch_binaries + tv_binaries,
     datas=[
         # Data directories
         ('cases', 'cases'),
@@ -32,10 +41,7 @@ a = Analysis(
         ('game.py', '.'),
         ('part1.py', '.'),
         ('streamlit_app.py', '.'),
-        # Metadata
-        copy_metadata('streamlit'),
-        copy_metadata('altair'),
-    ] + torch_datas + tv_datas + streamlit_datas,
+    ] + _extra_datas + torch_datas + tv_datas,
     hiddenimports=[
         # Core dependencies
         'torch',
@@ -78,7 +84,7 @@ a = Analysis(
         'gitpython',
         # Standard library
         'importlib.metadata',
-    ] + torch_hiddenimports + tv_hiddenimports + streamlit_hiddenimports,
+    ] + torch_hiddenimports + tv_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

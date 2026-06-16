@@ -103,7 +103,6 @@ a = Analysis(
         'unittest',
         'pytest',
         '_pytest',
-        'distutils',
         'lib2to3',
     ],
     win_no_prefer_redirects=False,

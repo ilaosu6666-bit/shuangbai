@@ -24,7 +24,7 @@ for _pkg in ['streamlit', 'altair']:
     try:
         from PyInstaller.utils.hooks import copy_metadata
         _meta = copy_metadata(_pkg)
-        _extra_datas.append(_meta)
+        _extra_datas.extend(_meta)  # copy_metadata returns list, extend not append
     except Exception:
         pass  # Package metadata not available
 

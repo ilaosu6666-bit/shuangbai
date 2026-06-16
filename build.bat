@@ -5,10 +5,10 @@ echo   智影溯源 - 桌面应用打包工具
 echo ============================================
 echo.
 
-REM Check for PyInstaller
-where pyinstaller >nul 2>&1
+REM Check for Python 3.14 (required for torch/streamlit)
+py -3.14 --version >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] PyInstaller not found. Run: pip install pyinstaller
+    echo [ERROR] Python 3.14 not found. This project requires Python 3.14.
     pause
     exit /b 1
 )
@@ -39,7 +39,7 @@ REM Build EXE
 echo [3/3] Building EXE with PyInstaller...
 echo        This may take 10-30 minutes depending on system speed...
 echo.
-pyinstaller --clean --noconfirm app-entry.spec
+py -3.14 -m PyInstaller --clean --noconfirm app-entry.spec
 
 if %ERRORLEVEL% EQU 0 (
     echo.

@@ -43,6 +43,17 @@ def wait_for_server(url: str, timeout: int = 30) -> bool:
 def run_streamlit_server(script_path: str, port: int) -> None:
     """Start Streamlit server in the current thread (blocks forever).
     Called from a daemon thread so it dies when main thread exits."""
+    # Monkey-patch signal to allow streamlit to run in a background thread.
+    # streamlit's bootstrap calls signal.signal() which only works in the main thread.
+    import signal as _signal
+    _orig_signal = _signal.signal
+    def _thread_safe_signal(signum, handler):
+        try:
+            return _orig_signal(signum, handler)
+        except ValueError:
+            return None  # Not in main thread — safe to ignore
+    _signal.signal = _thread_safe_signal
+
     # Ensure the app directory is on sys.path so streamlit can import game/part1
     app_dir = os.path.dirname(script_path)
     if app_dir not in sys.path:

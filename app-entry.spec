@@ -4,11 +4,12 @@ import os
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, copy_metadata
 
 # ── Collect PyTorch resources (large C extensions, DLLs) ──
 torch_datas, torch_binaries, torch_hiddenimports = collect_all('torch')
 tv_datas, tv_binaries, tv_hiddenimports = collect_all('torchvision')
+streamlit_datas, streamlit_binaries, streamlit_hiddenimports = collect_all('streamlit')
 
 # ── Determine icon path ──
 icon_path = None
@@ -21,7 +22,7 @@ for c in candidates:
 a = Analysis(
     ['desktop_launcher.py'],
     pathex=[],
-    binaries=torch_binaries + tv_binaries,
+    binaries=torch_binaries + tv_binaries + streamlit_binaries,
     datas=[
         # Data directories
         ('cases', 'cases'),
@@ -31,7 +32,10 @@ a = Analysis(
         ('game.py', '.'),
         ('part1.py', '.'),
         ('streamlit_app.py', '.'),
-    ] + torch_datas + tv_datas,
+        # Metadata
+        copy_metadata('streamlit'),
+        copy_metadata('altair'),
+    ] + torch_datas + tv_datas + streamlit_datas,
     hiddenimports=[
         # Core dependencies
         'torch',
@@ -43,6 +47,8 @@ a = Analysis(
         'cv2',
         'matplotlib',
         'tqdm',
+        # Webview (desktop_launcher.py runtime import)
+        'webview',
         # Medical imaging
         'pydicom',
         'pydicom.encoders',
@@ -51,14 +57,28 @@ a = Analysis(
         # ML / data
         'sklearn',
         'scipy',
-        # Streamlit internals (may be missed by analysis)
-        'streamlit.runtime',
-        'streamlit.runtime.scriptrunner',
-        'streamlit.web',
-        'streamlit.web.bootstrap',
-        'streamlit.elements',
         'altair',
-    ] + torch_hiddenimports + tv_hiddenimports,
+        # Streamlit transitive dependencies
+        'tornado',
+        'blinker',
+        'protobuf',
+        'pyarrow',
+        'click',
+        'cachetools',
+        'packaging',
+        'pympler',
+        'watchdog',
+        'rich',
+        'tenacity',
+        'toml',
+        'tzlocal',
+        'validators',
+        'semver',
+        'requests',
+        'gitpython',
+        # Standard library
+        'importlib.metadata',
+    ] + torch_hiddenimports + tv_hiddenimports + streamlit_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -68,6 +88,17 @@ a = Analysis(
         'jupyter',
         'notebook',
         'ipykernel',
+        # Bloat packages
+        'pip',
+        'setuptools',
+        'wheel',
+        'pkg_resources',
+        'tkinter',
+        'unittest',
+        'pytest',
+        '_pytest',
+        'distutils',
+        'lib2to3',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -88,7 +119,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,       # No terminal window (GUI app)

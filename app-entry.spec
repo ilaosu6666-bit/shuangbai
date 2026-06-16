@@ -4,11 +4,14 @@ import os
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 # ── Collect PyTorch resources (large C extensions, DLLs) ──
 torch_datas, torch_binaries, torch_hiddenimports = collect_all('torch')
 tv_datas, tv_binaries, tv_hiddenimports = collect_all('torchvision')
+
+# ── Collect Streamlit frontend files (critical: HTML/JS/CSS for the UI) ──
+streamlit_datas = collect_data_files('streamlit')
 
 # ── Determine icon path ──
 icon_path = None
@@ -41,7 +44,7 @@ a = Analysis(
         ('game.py', '.'),
         ('part1.py', '.'),
         ('streamlit_app.py', '.'),
-    ] + _extra_datas + torch_datas + tv_datas,
+    ] + _extra_datas + torch_datas + tv_datas + streamlit_datas,
     hiddenimports=[
         # Core dependencies
         'torch',

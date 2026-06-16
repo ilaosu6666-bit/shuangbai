@@ -342,7 +342,8 @@ class GuidedBackpropHelper:
 @st.cache_resource(show_spinner=False)
 def load_model(model_path: str) -> Tuple[nn.Module, GradCAMHelper]:
     model = build_model().to(DEVICE)
-    state_dict = torch.load(model_path, map_location=DEVICE)
+    checkpoint = torch.load(model_path, map_location=DEVICE)
+    state_dict = checkpoint.get('model_state_dict', checkpoint)
     model.load_state_dict(state_dict)
     model.eval()
     gradcam = GradCAMHelper(model)

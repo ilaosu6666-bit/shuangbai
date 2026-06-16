@@ -130,7 +130,8 @@ def load_model_resource(model_path: str):
         return None, None
     from part1 import build_model, GradCAMHelper
     model = build_model().to(DEVICE)
-    state_dict = torch.load(model_path, map_location=DEVICE)
+    checkpoint = torch.load(model_path, map_location=DEVICE)
+    state_dict = checkpoint.get('model_state_dict', checkpoint)
     model.load_state_dict(state_dict)
     model.eval()
     gradcam = GradCAMHelper(model)

@@ -109,7 +109,6 @@ a = Analysis(
         'wheel',
         'pkg_resources',
         'tkinter',
-        'unittest',
         'pytest',
         '_pytest',
         'lib2to3',

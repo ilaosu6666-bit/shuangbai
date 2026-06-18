@@ -87,6 +87,12 @@ a = Analysis(
         'gitpython',
         # Standard library
         'importlib.metadata',
+        # Streamlit internals
+        'streamlit.runtime.scriptrunner.magic_funcs',
+        'streamlit.runtime.scriptrunner.script_runner',
+        'streamlit.runtime.state',
+        'streamlit.runtime.caching',
+        'streamlit.runtime.session_manager',
     ] + torch_hiddenimports + tv_hiddenimports,
     hookspath=[],
     hooksconfig={},

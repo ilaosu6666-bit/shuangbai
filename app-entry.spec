@@ -15,7 +15,7 @@ streamlit_datas = collect_data_files('streamlit')
 
 # ── Determine icon path ──
 icon_path = None
-candidates = ['icon.ico', 'icon.png']
+candidates = ['icon.ico']
 for c in candidates:
     if os.path.exists(c):
         icon_path = c

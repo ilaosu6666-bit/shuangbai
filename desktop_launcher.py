@@ -63,6 +63,7 @@ def run_as_streamlit_server() -> None:
     _config.set_option("server.address", "127.0.0.1")
     _config.set_option("browser.gatherUsageStats", False)
     _config.set_option("server.fileWatcherType", "none")
+    _config.set_option("global.developmentMode", False)
 
     bootstrap.run(str(script_path), '', [], flag_options={})
 

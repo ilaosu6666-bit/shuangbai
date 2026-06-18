@@ -1,13 +1,13 @@
 """
 智影溯源 桌面启动器
 Entry point for PyInstaller-packaged EXE.
-Starts Streamlit server in background and wraps it in a desktop window.
+Starts Streamlit server as a subprocess and wraps it in a desktop window.
 """
 import os
 import sys
 import socket
 import time
-import threading
+import subprocess
 import urllib.request
 from pathlib import Path
 
@@ -33,31 +33,25 @@ def wait_for_server(url: str, timeout: int = 30) -> bool:
     start = time.time()
     while time.time() - start < timeout:
         try:
-            urllib.request.urlopen(url)
-            return True
+            with urllib.request.urlopen(url):
+                return True
         except Exception:
             time.sleep(0.3)
     return False
 
 
-def run_streamlit_server(script_path: str, port: int) -> None:
-    """Start Streamlit server in the current thread (blocks forever).
-    Called from a daemon thread so it dies when main thread exits."""
-    # Monkey-patch signal to allow streamlit to run in a background thread.
-    # streamlit's bootstrap calls signal.signal() which only works in the main thread.
-    import signal as _signal
-    _orig_signal = _signal.signal
-    def _thread_safe_signal(signum, handler):
-        try:
-            return _orig_signal(signum, handler)
-        except ValueError:
-            return None  # Not in main thread — safe to ignore
-    _signal.signal = _thread_safe_signal
+def run_as_streamlit_server() -> None:
+    """Run Streamlit server in this process (called via subprocess).
+    Streamlit needs to run in the main thread for signal handling."""
+    port = int(sys.argv[2])
+    app_dir = get_app_dir()
+    script_path = app_dir / "streamlit_app.py"
 
-    # Ensure the app directory is on sys.path so streamlit can import game/part1
-    app_dir = os.path.dirname(script_path)
-    if app_dir not in sys.path:
-        sys.path.insert(0, app_dir)
+    if not script_path.exists():
+        print(f"Error: {script_path} not found", flush=True)
+        sys.exit(1)
+
+    sys.path.insert(0, str(app_dir))
 
     import streamlit.web.bootstrap as bootstrap
     from streamlit import config as _config
@@ -69,62 +63,68 @@ def run_streamlit_server(script_path: str, port: int) -> None:
     _config.set_option("server.address", "127.0.0.1")
     _config.set_option("browser.gatherUsageStats", False)
     _config.set_option("server.fileWatcherType", "none")
-    _config.set_option("global.developmentMode", False)
 
-    bootstrap.run(script_path, '', [], flag_options={})
+    bootstrap.run(str(script_path), '', [], flag_options={})
+
+
+def show_error(msg: str) -> None:
+    """Show error message via MessageBox and console."""
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, msg, "启动错误", 0x10)
+    except Exception:
+        pass
+    print(msg, flush=True)
 
 
 def main() -> None:
+    # If called with --streamlit-server flag, run as streamlit server subprocess
+    if len(sys.argv) > 1 and sys.argv[1] == "--streamlit-server":
+        run_as_streamlit_server()
+        return
+
     app_dir = get_app_dir()
     port = find_free_port()
     script_path = app_dir / "streamlit_app.py"
 
     if not script_path.exists():
-        msg = f"Error: {script_path} not found"
-        try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(0, msg, "启动错误", 0x10)
-        except Exception:
-            pass
-        print(msg)
+        show_error(f"Error: {script_path} not found")
         sys.exit(1)
 
-    # Start Streamlit in daemon thread
-    server_thread = threading.Thread(
-        target=run_streamlit_server,
-        args=(str(script_path), port),
-        daemon=True,
-        name="streamlit-server",
-    )
-    server_thread.start()
+    # Start Streamlit as a subprocess (needs main thread for signals)
+    env = os.environ.copy()
+    if getattr(sys, 'frozen', False):
+        # Packaged EXE: call itself with --streamlit-server flag
+        cmd = [sys.executable, "--streamlit-server", str(port)]
+    else:
+        # Dev mode: run this same script with Python
+        cmd = [sys.executable, __file__, "--streamlit-server", str(port)]
+    server_proc = subprocess.Popen(cmd, env=env)
 
-    # Wait for server readiness (use health check endpoint that returns 200)
-    url = f"http://127.0.0.1:{port}"
+    # Wait for server readiness
     health_url = f"http://127.0.0.1:{port}/_stcore/health"
     if not wait_for_server(health_url):
-        msg = "Error: Streamlit server failed to start within 30 seconds"
-        try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(0, msg, "启动错误", 0x10)
-        except Exception:
-            pass
-        print(msg)
+        server_proc.kill()
+        show_error("Error: Streamlit server failed to start within 30 seconds")
         sys.exit(1)
 
-    # Open desktop window (blocking — returns when user closes window)
-    import webview
-    webview.create_window(
-        title="智影溯源 - AI肺结节教学平台",
-        url=url,
-        width=1280,
-        height=800,
-        min_size=(1024, 768),
-        resizable=True,
-    )
-    webview.start()
-
-    # Window closed — daemon thread terminates with process
-    sys.exit(0)
+    # Open desktop window
+    try:
+        import webview
+        webview.create_window(
+            title="智影溯源 - AI肺结节教学平台",
+            url=f"http://127.0.0.1:{port}",
+            width=1280,
+            height=800,
+            min_size=(1024, 768),
+            resizable=True,
+        )
+        webview.start()
+    finally:
+        # Clean up streamlit subprocess when window closes
+        server_proc.kill()
+        server_proc.wait()
+        sys.exit(0)
 
 
 if __name__ == "__main__":

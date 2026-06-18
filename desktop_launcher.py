@@ -69,6 +69,7 @@ def run_streamlit_server(script_path: str, port: int) -> None:
     _config.set_option("server.address", "127.0.0.1")
     _config.set_option("browser.gatherUsageStats", False)
     _config.set_option("server.fileWatcherType", "none")
+    _config.set_option("global.developmentMode", False)
 
     bootstrap.run(script_path, '', [], flag_options={})
 
@@ -97,9 +98,10 @@ def main() -> None:
     )
     server_thread.start()
 
-    # Wait for server readiness
+    # Wait for server readiness (use health check endpoint that returns 200)
     url = f"http://127.0.0.1:{port}"
-    if not wait_for_server(url):
+    health_url = f"http://127.0.0.1:{port}/_stcore/health"
+    if not wait_for_server(health_url):
         msg = "Error: Streamlit server failed to start within 30 seconds"
         try:
             import ctypes
